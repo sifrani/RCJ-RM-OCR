@@ -5,7 +5,7 @@ def main():
     cap = cv2.VideoCapture(0)
 
     if not cap.isOpened():
-        print("Errore: Impossibile aprire la telecamera.")
+        print("Errore: Impossibile aprire la telecamera")
         return
 
     squareSize = 20
@@ -14,7 +14,7 @@ def main():
         ret, frame = cap.read()
 
         if not ret:
-            print("Errore: Impossibile leggere il frame dalla telecamera.")
+            print("Errore: Impossibile leggere il frame dalla telecamera")
             break
 
         height, width, _ = frame.shape
@@ -35,7 +35,7 @@ def main():
         cv2.rectangle(frame, (blackSquareX1, blackSquareY1),
                       (blackSquareX2, blackSquareY2), (0, 0, 0), 2)
 
-        cv2.imshow('Camera Feed con Quadrati', frame)
+        cv2.imshow('calibrator', frame)
 
         key = cv2.waitKey(1) & 0xFF
 
@@ -45,15 +45,11 @@ def main():
 
             if whiteSquarePixels.size > 0:
                 meanRgbWhite = np.mean(whiteSquarePixels, axis=(0, 1))
-                print(f"Media RGB Quadrato Bianco: {meanRgbWhite}")
-            else:
-                print("Il quadrato bianco non contiene pixel validi.")
+                print(f"White: {meanRgbWhite}")
 
             if blackSquarePixels.size > 0:
                 meanRgbBlack = np.mean(blackSquarePixels, axis=(0, 1))
-                print(f"Media RGB Quadrato Nero: {meanRgbBlack}")
-            else:
-                print("Il quadrato nero non contiene pixel validi.")
+                print(f"black: {meanRgbBlack}")
 
         elif key == ord('q'):
             break

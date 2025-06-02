@@ -4,6 +4,11 @@ from collections import deque
 import threading
 import time
 
+
+whiteRgb = (150,153,170)
+blackRgb = (25,23,35)
+
+
 latestFrame = None
 frameLock = threading.Lock()
 runningThreads = True
@@ -80,7 +85,7 @@ def serafinSimone(skeleton):
                             i+=1
                     i+=1
                 
-                # Check for wrap-around for the last and first neighbor with boundary checks
+                #check for wrap-around for the last and first neighbor with boundary checks
                 if (0 <= x+dirs[0][0] < rows and 0 <= y+dirs[0][1] < cols and skeleton[x+dirs[0][0],y+dirs[0][1]]) and \
                    (0 <= x+dirs[len(dirs)-1][0] < rows and 0 <= y+dirs[len(dirs)-1][1] < cols and skeleton[(x+dirs[len(dirs)-1][0],y+dirs[len(dirs)-1][1])]):
                     l-=1
@@ -148,6 +153,7 @@ def serafinSimone(skeleton):
     return None
 
 def cameraCaptureThread():
+    global runningThreads
     cap = cv2.VideoCapture(0) 
     if not cap.isOpened():
         print("Errore: Impossibile aprire la webcam.")
@@ -183,6 +189,40 @@ def ocrProcessingThread():
 
             imgBools = np.zeros((width, height), dtype=bool)
             imgBools_ = np.zeros((width, height), dtype=bool)
+
+
+
+            imgFloat = currentFrameToProcess.astype(np.float32)
+
+            gBlack, rBlack, bBlack = blackRgb[2], blackRgb[1], blackRgb[0]
+            gWhite, rWhite, bWhite = whiteRgb[2], whiteRgb[1], whiteRgb[0]
+
+            # Canale Rosso (indice 2 in BGR)
+            rangeR = rWhite - rBlack
+            if rangeR != 0:
+                imgFloat[:, :, 2] = (imgFloat[:, :, 2] - rBlack) * (255.0 / rangeR)
+            else:
+                imgFloat[:, :, 2] = 0.0
+
+            # Canale Verde (indice 1 in BGR)
+            rangeG = gWhite - gBlack
+            if rangeG != 0:
+                imgFloat[:, :, 1] = (imgFloat[:, :, 1] - gBlack) * (255.0 / rangeG)
+            else:
+                imgFloat[:, :, 1] = 0.0
+
+            # Canale Blu (indice 0 in BGR)
+            rangeB = bWhite - bBlack
+            if rangeB != 0:
+                imgFloat[:, :, 0] = (imgFloat[:, :, 0] - bBlack) * (255.0 / rangeB)
+            else:
+                imgFloat[:, :, 0] = 0.0
+
+            imgCorrected = np.clip(imgFloat, 0, 255)
+
+            imgCorrected = imgCorrected.astype(np.uint8)
+
+            currentFrameToProcess = imgCorrected
 
             rng = 50
             for x in range(width):

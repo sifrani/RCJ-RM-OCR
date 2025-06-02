@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 
 imgMatrix = []
 
+whiteRgb = (150,153,170)
+blackRgb = (25,23,35)
+
 
 def getNeighbours(x, y, image):
     xMinus1, yMinus1, xPlus1, yPlus1 = x - 1, y - 1, x + 1, y + 1
@@ -63,6 +66,8 @@ def checkLetter(group, imgMatrix, maxX, minX, maxY, minY):
         r, g, b = imgMatrix[px[1]][px[0]]
         if int(r) + int(g) + int(b) < avg:
             binaryMatrix[px[1]-minY, px[0]-minX] = 1
+            
+        imgMatrix[px[1]][px[0]] = (255,0,255)
 
     skeleton = zhangSuen(binaryMatrix)
 
@@ -78,8 +83,6 @@ def serafinSimone(skeleton):
     for x in range(1,rows-1):
         for y in range(1,cols-1):
             if skeleton[x, y]:
-                # In OpenCV, modify directly imgMatrix if you want to see the changes
-                # imgMatrix[x][y] = (50,0,100) # This won't work directly for visualization in OpenCV
                 l = 0
                 i = 0
                 while i < len(dirs):
@@ -91,14 +94,11 @@ def serafinSimone(skeleton):
                             i+=1
                     i+=1
 
-                # Check for wrap-around for the last and first neighbor
                 if skeleton[x+dirs[0][0],y+dirs[0][1]] and skeleton[(x+dirs[len(dirs)-1][0],y+dirs[len(dirs)-1][1])]:
                     l-=1
 
                 if l%2 == 1:
                     vertexies.append((x,y))
-                    # imgMatrix[x][y] = (250,0,100) # This won't work directly for visualization in OpenCV
-
 
     def rlerp(a, b, tStart=0.2, tEnd=0.8):
         x0, y0 = a
@@ -121,7 +121,6 @@ def serafinSimone(skeleton):
                 if err < 0:
                     y += sy
                     err += dx
-                    # passo diagonale → aggiungi passo verticale
                     punti.append((x + sx, y - sy))
                 x += sx
         else:
@@ -132,13 +131,11 @@ def serafinSimone(skeleton):
                 if err < 0:
                     x += sx
                     err += dy
-                    # passo diagonale → aggiungi passo orizzontale
                     punti.append((x - sx, y + sy))
                 y += sy
 
         punti.append((x, y))
 
-        # Rimuovi duplicati preservando l'ordine
         visti = set()
         connessi = []
         for p in punti:
@@ -146,19 +143,17 @@ def serafinSimone(skeleton):
                 connessi.append(p)
                 visti.add(p)
 
-        # Calcola gli indici LERP
         n = len(connessi)
         startIndex = int(tStart * n)
         endIndex = int(tEnd * n)
 
         return connessi[startIndex:endIndex]
 
-
+    print(vertexies)
     if len(vertexies) == 6:
         return "H"
     if len(vertexies) == 2:
         for x,y in rlerp(vertexies[0], vertexies[1], 0.2, 0.8):
-            # Ensure coordinates are within bounds before accessing skeleton
             if 0 <= x < rows and 0 <= y < cols and skeleton[x][y]:
                 return "S"
         return "U"
@@ -166,9 +161,40 @@ def serafinSimone(skeleton):
     return None
 
 def convertImageToMatrix(imagePath):
-    # OpenCV reads images in BGR format
     img = cv2.imread(imagePath)
-    return img
+
+    if img is None:
+        print(f"Errore: Impossibile caricare l'immagine da {imagePath}")
+        return None
+
+    imgFloat = img.astype(np.float32)
+
+    bBlack, gBlack, rBlack = blackRgb[2], blackRgb[1], blackRgb[0]
+    bWhite, gWhite, rWhite = whiteRgb[2], whiteRgb[1], whiteRgb[0]
+
+    rangeR = rWhite - rBlack
+    if rangeR != 0:
+        imgFloat[:, :, 2] = (imgFloat[:, :, 2] - rBlack) * (255.0 / rangeR)
+    else:
+        imgFloat[:, :, 2] = 0.0
+
+    rangeG = gWhite - gBlack
+    if rangeG != 0:
+        imgFloat[:, :, 1] = (imgFloat[:, :, 1] - gBlack) * (255.0 / rangeG)
+    else:
+        imgFloat[:, :, 1] = 0.0
+
+    rangeB = bWhite - bBlack
+    if rangeB != 0:
+        imgFloat[:, :, 0] = (imgFloat[:, :, 0] - bBlack) * (255.0 / rangeB)
+    else:
+        imgFloat[:, :, 0] = 0.0
+
+    imgCorrected = np.clip(imgFloat, 0, 255)
+
+    imgCorrected = imgCorrected.astype(np.uint8)
+
+    return imgCorrected
 
 def showImageAndMatrixInOpenCV(imagePath):
     global imgMatrix
@@ -180,24 +206,19 @@ def showImageAndMatrixInOpenCV(imagePath):
     height, width, _ = imgMatrix.shape
     print(width, height)
 
-    # Create a copy of the original image for drawing
-    displayImage = imgMatrix.copy()
+    displayImage = imgMatrix#.copy()
 
-    # --- Start of your original gray area selection logic ---
     imgBools = np.zeros((width, height), dtype=bool)
     imgBoolsUnderscore = np.zeros((width, height), dtype=bool)
 
-    rng = 54
+    rng = 60
     for x in range(width):
         for y in range(height):
-            # OpenCV loads as BGR, so imgMatrix[y][x] gives [B, G, R]
             b, g, r = imgMatrix[y][x]
             if abs(int(r) - int(g)) + abs(int(g) - int(b)) + abs(int(b) - int(r)) < rng:
                 imgBoolsUnderscore[x][y] = True
-    # This part applies a 5x5 window check, similar to a morphological operation
     for x_ in range(2, width - 2):
         for y_ in range(2, height - 2):
-            # Check if all pixels in the 5x5 neighborhood are True in imgBoolsUnderscore
             allTrueInWindow = True
             for dx in range(-2, 3):
                 for dy in range(-2, 3):
@@ -214,14 +235,12 @@ def showImageAndMatrixInOpenCV(imagePath):
         currentImgBools[startX][startY] = False
         g = [(startX, startY)]
 
-        # 8-directional connectivity
         dirs = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
 
         while pipe:
             cx, cy = pipe.popleft()
             for dx, dy in dirs:
                 nx, ny = cx + dx, cy + dy
-                # Ensure nx, ny are within bounds of currentImgBools
                 if 0 <= nx < currentImgBools.shape[0] and 0 <= ny < currentImgBools.shape[1] and currentImgBools[nx][ny]:
                     currentImgBools[nx][ny] = False
                     pipe.append((nx, ny))
@@ -229,7 +248,6 @@ def showImageAndMatrixInOpenCV(imagePath):
         return g
 
     groups = []
-    # Create a mutable copy for BFS to modify
     imgBoolsMutable = imgBools.copy()
 
     for i in range(width):
@@ -238,40 +256,35 @@ def showImageAndMatrixInOpenCV(imagePath):
                 g = bfs(i, j, imgBoolsMutable)
                 if g:
                     groups.append(g)
-    # --- End of your original gray area selection logic ---
 
     for g in groups:
-        if len(g) > 100:
+        if len(g) > 200:
             minX, maxX = width, 0
             minY, maxY = height, 0
 
-            # Calculate bounding box for the current group
             for px in g:
                 minX = min(minX, px[0])
                 maxX = max(maxX, px[0])
                 minY = min(minY, px[1])
                 maxY = max(maxY, px[1])
 
-            # Draw bounding box on the display image
-            # OpenCV rectangle: (img, (x1,y1), (x2,y2), color (BGR), thickness)
             cv2.rectangle(displayImage, (minX, minY), (maxX, maxY), (0, 255, 0), 1)
 
-            # Pass the group, original imgMatrix, and bounding box to checkLetter
             sk = checkLetter(g, imgMatrix, maxX, minX, maxY, minY)
 
-            # Check if skeletonization resulted in a non-empty skeleton before passing to serafinSimone
             if sk.size > 0 and np.any(sk == 1):
                 v = serafinSimone(sk)
                 if v:
                     print(f"Detected: {v} in bounding box ({minX}, {minY}, {maxX-minX+1}, {maxY-minY+1})")
+                else:
+                    print("trovato niente")
             else:
                 print(f"No skeleton found for a group in bounding box ({minX}, {minY}, {maxX-minX+1}, {maxY-minY+1})")
 
-    # Display the final image with bounding boxes
     cv2.imshow('Image with Detected Letters', displayImage)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
 
-imagePath = 'immagine5.png'
+imagePath = 'immagine4.png'
 showImageAndMatrixInOpenCV(imagePath)

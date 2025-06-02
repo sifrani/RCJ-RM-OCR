@@ -3,6 +3,8 @@ try:
 except:
     ...
 
+#non implementa la calibrazione
+
 import pygame
 import numpy as np
 from PIL import Image
@@ -126,7 +128,6 @@ def serafinSimone(skeleton):
                 if err < 0:
                     y += sy
                     err += dx
-                    # passo diagonale → aggiungi passo verticale
                     punti.append((x + sx, y - sy))
                 x += sx
         else:
@@ -137,13 +138,11 @@ def serafinSimone(skeleton):
                 if err < 0:
                     x += sx
                     err += dy
-                    # passo diagonale → aggiungi passo orizzontale
                     punti.append((x - sx, y + sy))
                 y += sy
 
         punti.append((x, y))
 
-        # Rimuovi duplicati preservando l'ordine
         visti = set()
         connessi = []
         for p in punti:
